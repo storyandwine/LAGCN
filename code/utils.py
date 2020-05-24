@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import scipy.sparse as sp
 def weight_variable_glorot(input_dim,output_dim,name=""):
     #初始化
     init_range = np.sqrt(6.0/(input_dim + output_dim))

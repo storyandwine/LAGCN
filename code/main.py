@@ -5,7 +5,6 @@ import tensorflow as tf
 import gc
 import random
 import math
-from datetime import datetime
 import os
 import requests
 from clr import cyclic_learning_rate
@@ -20,122 +19,6 @@ def constructAdjNet(drug_dis_matrix):
     adj =  np.vstack((mat1,mat2))
     # adj =  adj + sp.eye(adj.shape[0])
     return adj
-
-
-class GCNModel():
-
-    def __init__(self, placeholders, num_features, features_nonzero,adj_nonzero, name,act= tf.nn.elu):
-        self.name = name
-        self.inputs = placeholders['features']
-        self.input_dim = num_features
-        self.features_nonzero = features_nonzero
-        self.adj_nonzero = adj_nonzero
-        self.adj = placeholders['adj']
-        self.dropout = placeholders['dropout']
-        self.adjdp = placeholders['adjdp']
-        self.act = act
-        self.att=tf.Variable(tf.constant([0.5,0.33,0.25]))
-        self.adjtmp =None
-        with tf.variable_scope(self.name):
-            self.build()
-        
-    def build(self):
-        self.adj = dropout_sparse(self.adj, 1-self.adjdp, self.adj_nonzero)    
-        self.hidden1 = GraphConvolutionSparse(
-            name='gcn_sparse_layer',
-            input_dim=self.input_dim,
-            output_dim=FLAGS.hidden1,
-            adj=self.adj,
-            features_nonzero=self.features_nonzero,
-            dropout=self.dropout,
-            act = self.act)(self.inputs)
-        
-        # self.adjtmp = dropout_sparse(self.adj, 1-self.adjdp, self.adj_nonzero) 
-        self.hidden2 = GraphConvolution(
-            name='gcn_dense_layer',
-            input_dim=FLAGS.hidden1,
-            output_dim=FLAGS.hidden2,
-            adj=self.adj,
-            dropout=self.dropout,
-            act = self.act)(self.hidden1)
-        
-        # self.adjtmp = dropout_sparse(self.adj, 1-self.adjdp, self.adj_nonzero) 
-        self.emb = GraphConvolution(
-            name='gcn_dense_layer2',
-            input_dim=FLAGS.hidden2,
-            output_dim=FLAGS.hidden3,
-            adj=self.adj,
-            dropout=self.dropout,
-            act = self.act)(self.hidden2)
-        # self.att = tf.abs(self.att)
-        # self.embeddings = self.hidden1/2+self.hidden2/3+self.emb/4
-        # self.att = self.att/tf.reduce_sum(self.att)
-        self.embeddings = self.hidden1*self.att[0]+self.hidden2*self.att[1]+self.emb*self.att[2]
-        
-        # self.embeddings =  tf.matmul(self.att,tf.stack([self.hidden1,self.hidden2,self.emb]))
-       
-        # self.embeddings =self.hidden1/3+self.hidden2/3+self.emb/3
-        # self.embeddings =self.emb
-        
-        self.reconstructions = InnerProductDecoder(
-            name='gcn_decoder',
-            input_dim=FLAGS.hidden3,act=tf.nn.sigmoid)(self.embeddings)
-
-class Optimizer():
-    def __init__(self,model, preds, labels,w,lr,association_nam):
-        norm = 269*598 / float((269*598-association_nam) * 2)
-        preds_sub = preds
-        labels_sub = labels
-        pos_weight = float(269*598-association_nam)/(association_nam)
-        # global_step = tf.Variable(0, trainable=False)
-
-        # learning_rate = tf.train.exponential_decay(learning_rate = lr,
-        #                                    global_step = global_step,
-        #                                    decay_steps = 3000,
-        #                                    decay_rate = 0.5,
-        #                                    staircase = True,#If `True` decay the learning rate at discrete intervals
-        #                                    #staircase = False,change learning rate at every step
-        #                                    )
-        
-        global_step = tf.Variable(0, trainable=False)
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=
-            cyclic_learning_rate(global_step=global_step,learning_rate=lr*0.1,
-                         max_lr=lr, mode='exp_range',gamma=.995))
-        
-        # alpha = w
-        # gamma = 2
-
-        # alpha_t = labels*alpha + (tf.ones_like(labels)-labels)*(1-alpha)
-    
-        # p_t = labels*preds + (tf.ones_like(labels)-labels)*(tf.ones_like(labels)-preds) + 1e-7
-        # focal_loss = - alpha_t * tf.pow((tf.ones_like(labels)-p_t),gamma) * tf.log(p_t)
-        # self.cost = tf.reduce_sum(focal_loss)
-
-        # self.cost += 1e-5*tf.nn.l2_loss(model.embeddings)
-
-        self.cost = norm * tf.reduce_mean(
-            tf.nn.weighted_cross_entropy_with_logits(
-                logits=preds_sub, targets=labels_sub, pos_weight=pos_weight*w))
-        
-        # self.cost = 0.5*tf.reduce_sum(labels*tf.square(labels-preds))+0.125*tf.reduce_sum((1-labels)*tf.square(labels-preds))
-        # self.cost += w * tf.nn.l2_loss(model.embeddings)
-        
-        # train_op = optimizer.minimize(loss_op, global_step=global_step)
-        # self.cost += 5e-4 * tf.nn.l2_loss(tf.get_collection('w3'))
-        # self.cost += 5e-4 * tf.nn.l2_loss(tf.get_collection('w2'))
-        # self.cost += 5e-4 * tf.nn.l2_loss(tf.get_collection('gcn_dense_layerw1'))
-        # self.cost += 5e-4 * tf.nn.l2_loss(tf.get_collection('gcn_dense_layer2w1'))
-        # for var in model.layers[1].vars.values():
-        #     self.loss += 5e-4 * tf.nn.l2_loss(var)
-        # for var in model.layers[2].vars.values():
-        #     self.loss += 5e-4 * tf.nn.l2_loss(var)
-        # for var in model.layers[3].vars.values():
-        #     self.loss += 5e-4 * tf.nn.l2_loss(var)    
-        # self.cost += 5e-4* tf.nn.l2_loss(embs)
-        # self.optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)  # Adam Optimizer
-        # self.optimizer = tf.train.AdamOptimizer(learning_rate=lr)
-        self.opt_op = self.optimizer.minimize(self.cost,global_step=global_step,)
-        self.grads_vars = self.optimizer.compute_gradients(self.cost)
 
 def constructXNet(drug_dis_matrix,drug_matrix,dis_matrix):
     mat1 = np.hstack((drug_matrix,drug_dis_matrix))
@@ -297,62 +180,23 @@ def get_Jaccard2_Similarity(interaction_matrix):
 
 
 if __name__=="__main__":
-    datetime1 = datetime.now()
     similarity_data = spio.loadmat('similarity.mat')
     scmfdd = spio.loadmat('SCMFDD_Dataset.mat')
     drug_dis_matrix = scmfdd['drug_disease_association_matrix']
     # drug_features = ['structure_feature_matrix', 'target_feature_matrix','enzyme_feature_matrix','pathway_feature_matrix', 'drug_drug_interaction_feature_matrix']
     drug_features = ['target_feature_matrix']
-    epochs =[4000]
-    lrs = [0.01]
-    adjdps = [0.6]
-    dps =  [0.4]
-    ws = [1]
-    simws = [6]
-    # rates = [0.8,0.85,0.9,0.95]
-    # for rate in rates:
-    #     index_matrix = np.mat(np.where(drug_dis_matrix == 1))
-    #     association_nam = index_matrix.shape[1]
-    #     random_index = index_matrix.T.tolist()
-    #     random.shuffle(random_index)
-    #     random_index = random_index[int(association_nam*rate):]
-    #     drug_dis_matrix1 = drug_dis_matrix.copy()
-    #     drug_dis_matrix1[tuple(np.array(random_index).T)] = 0
-    
-    for drug_feature in drug_features:
-        if drug_feature == 'target_feature_matrix':
-            drug_sim = get_Jaccard2_Similarity(scmfdd[drug_feature])
-        else:
-            drug_sim += get_Jaccard2_Similarity(scmfdd[drug_feature])
+    epoch =4000
+    lr = 0.01
+    adjdp = 0.6
+    dp =  0.4
+    simw = 6
+    drug_sim =
     dis_sim = np.array(similarity_data['normalized_dis_similairty_matrix'])
-    for epoch in epochs:
-        for lr in lrs:
-            for simw in simws:
-                for w in ws:
-                    for dp in dps:
-                        for adjdp in adjdps:
-                                result = np.zeros((1, 7), float)
-                                average_result = np.zeros((1, 7), float)
-                                circle_time = 10
-                                for j in range(circle_time):
-                                    result += cross_validation_experiment(drug_dis_matrix,drug_sim*simw,dis_sim*simw,j,epoch,dp,w,lr,adjdp)
-                                average_result = result / circle_time
-                                print(average_result)
-                                with open('resultDNN/ParameterSetting5.csv','a') as f:
-                                    f.write(str(drug_feature)+','+str(lr)+','+str(epoch)+','+str(adjdp)+','+str(dp)+','+str(w)+','+str(simw)+',')
-                                    # 'simw='+str(simw)+  '+str(drug)+'
-                                with open('resultDNN/ParameterSetting5.csv','ab') as f: 
-                                    np.savetxt(f, average_result, delimiter=",")
-                                # df = pd.DataFrame(average_result)
-                                # df.to_csv(name,mode='a',header = False)
-                                print(datetime.now() - datetime1)
-
-    try:
-        api = "https://sc.ftqq.com/SCU45561Td5de9ce32e9fc7ace4e31c5f1f43ebe25c79f93cd1536.send"
-        data = {
-        "text":"运行结束",
-        "desp": ""
-        }
-        req = requests.post(api,data = data)
-    except:
-        print("网络问题")
+    
+    result = np.zeros((1, 7), float)
+    average_result = np.zeros((1, 7), float)
+    circle_time = 1
+    for j in range(circle_time):
+        result += cross_validation_experiment(drug_dis_matrix,drug_sim*simw,dis_sim*simw,j,epoch,dp,lr,adjdp)
+    average_result = result / circle_time
+    print(average_result)
