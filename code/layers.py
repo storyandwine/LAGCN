@@ -1,19 +1,23 @@
 import tensorflow as tf
 from utils import *
+
+
 class GraphConvolution():
     """Basic graph convolution layer for undirected graph without edge labels."""
+
     def __init__(self, input_dim, output_dim, adj, name, dropout=0., act=tf.nn.relu):
         self.name = name
         self.vars = {}
         self.issparse = False
         with tf.variable_scope(self.name + '_vars'):
-            self.vars['weights'] = weight_variable_glorot(input_dim, output_dim, name='weights')
+            self.vars['weights'] = weight_variable_glorot(
+                input_dim, output_dim, name='weights')
         self.dropout = dropout
         self.adj = adj
         self.act = act
 
     def __call__(self, inputs):
-        with tf.name_scope(self.name):        
+        with tf.name_scope(self.name):
             x = inputs
             x = tf.nn.dropout(x, 1-self.dropout)
             x = tf.matmul(x, self.vars['weights'])
@@ -21,13 +25,16 @@ class GraphConvolution():
             outputs = self.act(x)
         return outputs
 
+
 class GraphConvolutionSparse():
     """Graph convolution layer for sparse inputs."""
+
     def __init__(self, input_dim, output_dim, adj, features_nonzero, name, dropout=0., act=tf.nn.relu):
         self.name = name
         self.vars = {}
         with tf.variable_scope(self.name + '_vars'):
-            self.vars['weights'] = weight_variable_glorot(input_dim, output_dim, name='weights')
+            self.vars['weights'] = weight_variable_glorot(
+                input_dim, output_dim, name='weights')
         self.dropout = dropout
         self.adj = adj
         self.act = act
@@ -42,10 +49,12 @@ class GraphConvolutionSparse():
             x = tf.sparse_tensor_dense_matmul(self.adj, x)
             outputs = self.act(x)
         return outputs
-       
+
+
 class InnerProductDecoder():
     """Decoder model layer for link prediction."""
-    def __init__(self, input_dim, name,num_u, dropout=0., act=tf.nn.sigmoid):
+
+    def __init__(self, input_dim, name, num_u, dropout=0., act=tf.nn.sigmoid):
         self.name = name
         self.vars = {}
         self.issparse = False
@@ -53,15 +62,15 @@ class InnerProductDecoder():
         self.act = act
         self.num_u = num_u
         with tf.variable_scope(self.name + '_vars'):
-            self.vars['weights'] = weight_variable_glorot(input_dim,input_dim,name='weights')
-            
-            
+            self.vars['weights'] = weight_variable_glorot(
+                input_dim, input_dim, name='weights')
+
     def __call__(self, inputs):
         with tf.name_scope(self.name):
             inputs = tf.nn.dropout(inputs, 1-self.dropout)
-            U=inputs[0:num_u,:]
-            V=inputs[num_u:,:]
-            U = tf.matmul(U,self.vars['weights'])
+            U = inputs[0:num_u, :]
+            V = inputs[num_u:, :]
+            U = tf.matmul(U, self.vars['weights'])
             V = tf.transpose(V)
             x = tf.matmul(U, V)
             x = tf.reshape(x, [-1])
