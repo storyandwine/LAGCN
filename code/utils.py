@@ -4,7 +4,6 @@ import scipy.sparse as sp
 
 
 def weight_variable_glorot(input_dim, output_dim, name=""):
-    # 初始化
     init_range = np.sqrt(6.0/(input_dim + output_dim))
     initial = tf.random_uniform(
         [input_dim, output_dim],
@@ -18,11 +17,8 @@ def weight_variable_glorot(input_dim, output_dim, name=""):
 
 def dropout_sparse(x, keep_prob, num_nonzero_elems):
     noise_shape = [num_nonzero_elems]
-    # keep_prob设置神经元被选中的概率
     random_tensor = keep_prob
     random_tensor += tf.random_uniform(noise_shape)
-    # tf.cast 数据类型转换
-    # tf.floor向下取整,ceil向上取整
     dropout_mask = tf.cast(tf.floor(random_tensor), dtype=tf.bool)
     pre_out = tf.sparse_retain(x, dropout_mask)
     return pre_out*(1./keep_prob)
@@ -31,9 +27,6 @@ def dropout_sparse(x, keep_prob, num_nonzero_elems):
 def sparse_to_tuple(sparse_mx):
     if not sp.isspmatrix_coo(sparse_mx):
         sparse_mx = sparse_mx.tocoo()
-    # np.vstack 垂直堆叠数组123，456
-    # 堆叠成123
-        # 456
     coords = np.vstack((sparse_mx.row, sparse_mx.col)).transpose()
     values = sparse_mx.data
     shape = sparse_mx.shape
@@ -41,13 +34,9 @@ def sparse_to_tuple(sparse_mx):
 
 
 def preprocess_graph(adj):
-    # 图的预处理，拉普拉斯正则化
-    # coo 是一种矩阵格式
     adj_ = sp.coo_matrix(adj)
-    # adj_ = adj + sp.eye(adj.shape[0])
     rowsum = np.array(adj_.sum(1))
     degree_mat_inv_sqrt = sp.diags(np.power(rowsum, -0.5).flatten())
-    # adj_nomalized = degree_mat_inv_sqrt.dot(adj_).tocoo()
     adj_nomalized = adj_.dot(
         degree_mat_inv_sqrt).transpose().dot(degree_mat_inv_sqrt)
     adj_nomalized = adj_nomalized.tocoo()

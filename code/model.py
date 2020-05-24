@@ -5,7 +5,7 @@ from utils import *
 
 class GCNModel():
 
-    def __init__(self, placeholders, num_features, emb_dim, features_nonzero, adj_nonzero, name, act=tf.nn.elu):
+    def __init__(self, placeholders, num_features, emb_dim, features_nonzero, adj_nonzero, num_u, name, act=tf.nn.elu):
         self.name = name
         self.inputs = placeholders['features']
         self.input_dim = num_features
@@ -17,6 +17,7 @@ class GCNModel():
         self.adjdp = placeholders['adjdp']
         self.act = act
         self.att = tf.Variable(tf.constant([0.5, 0.33, 0.25]))
+        self.num_u = num_u
         with tf.variable_scope(self.name):
             self.build()
 
@@ -53,4 +54,4 @@ class GCNModel():
 
         self.reconstructions = InnerProductDecoder(
             name='gcn_decoder',
-            input_dim=self.emb_dim, act=tf.nn.sigmoid)(self.embeddings)
+            input_dim=self.emb_dim, num_u=self.num_u, act=tf.nn.sigmoid)(self.embeddings)

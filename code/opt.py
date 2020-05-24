@@ -3,7 +3,7 @@ import tensorflow as tf
 
 
 class Optimizer():
-    def __init__(self, model, preds, labels, w, lr, num_u, num_v, association_nam):
+    def __init__(self, model, preds, labels, lr, num_u, num_v, association_nam):
         norm = num_u*num_v / float((num_u*num_v-association_nam) * 2)
         preds_sub = preds
         labels_sub = labels

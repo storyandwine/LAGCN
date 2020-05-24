@@ -5,9 +5,11 @@ import gc
 import random
 from clac_metric import cv_model_evaluate
 from utils import *
+from model import GCNModel
+from opt import Optimizer
 
 
-def PredictScore(train_drug_dis_matrix, drug_matrix, dis_matrix, seed, epochs, dp, w, lr, drug_dis_matrix, adjdp):
+def PredictScore(train_drug_dis_matrix, drug_matrix, dis_matrix, seed, epochs, emb_dim, dp, lr,  adjdp):
     np.random.seed(seed)
     tf.reset_default_graph()
     tf.set_random_seed(seed)
@@ -30,15 +32,15 @@ def PredictScore(train_drug_dis_matrix, drug_matrix, dis_matrix, seed, epochs, d
         'dropout': tf.placeholder_with_default(0., shape=()),
         'adjdp': tf.placeholder_with_default(0., shape=())
     }
-    model = GCNModel(placeholders, num_features,
-                     features_nonzero, adj_nonzero, name='LAGCN')
+    model = GCNModel(placeholders, num_features, emb_dim,
+                     features_nonzero, adj_nonzero, train_drug_dis_matrix.shape[0], name='LAGCN')
     with tf.name_scope('optimizer'):
         opt = Optimizer(
             preds=model.reconstructions,
             labels=tf.reshape(tf.sparse_tensor_to_dense(
                 placeholders['adj_orig'], validate_indices=False), [-1]),
             model=model,
-            w=w, lr=lr, association_nam=association_nam)
+            lr=lr, num_u=train_drug_dis_matrix.shape[0], num_v=train_drug_dis_matrix.shape[1], association_nam=association_nam)
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
 
@@ -64,7 +66,7 @@ def PredictScore(train_drug_dis_matrix, drug_matrix, dis_matrix, seed, epochs, d
     return res
 
 
-def cross_validation_experiment(drug_dis_matrix, drug_matrix, dis_matrix, seed, epochs, dp, lr, adjdp):
+def cross_validation_experiment(drug_dis_matrix, drug_matrix, dis_matrix, seed, epochs, emb_dim, dp, lr, adjdp):
     index_matrix = np.mat(np.where(drug_dis_matrix == 1))
     association_nam = index_matrix.shape[1]
     random_index = index_matrix.T.tolist()
@@ -86,7 +88,7 @@ def cross_validation_experiment(drug_dis_matrix, drug_matrix, dis_matrix, seed, 
         drug_len = drug_dis_matrix.shape[0]
         dis_len = drug_dis_matrix.shape[1]
         drug_disease_res = PredictScore(
-            train_matrix, drug_matrix, dis_matrix, seed, epochs, dp, w, lr, drug_dis_matrix, adjdp)
+            train_matrix, drug_matrix, dis_matrix, seed, epochs, emb_dim, dp, lr,  adjdp)
         predict_y_proba = drug_disease_res.reshape(drug_len, dis_len)
         metric_tmp = cv_model_evaluate(
             drug_dis_matrix, predict_y_proba, train_matrix)
@@ -107,6 +109,7 @@ if __name__ == "__main__":
     dis_sim = np.loadtxt('../data/dis_sim.csv', delimiter=',')
     drug_dis_matrix = np.loadtxt('../data/drug_dis.csv', delimiter=',')
     epoch = 4000
+    emb_dim = 64
     lr = 0.01
     adjdp = 0.6
     dp = 0.4
@@ -116,6 +119,6 @@ if __name__ == "__main__":
     circle_time = 1
     for i in range(circle_time):
         result += cross_validation_experiment(
-            drug_dis_matrix, drug_sim*simw, dis_sim*simw, i, epoch, dp, lr, adjdp)
+            drug_dis_matrix, drug_sim*simw, dis_sim*simw, i, epoch, emb_dim, dp, lr, adjdp)
     average_result = result / circle_time
     print(average_result)

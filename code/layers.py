@@ -68,8 +68,8 @@ class InnerProductDecoder():
     def __call__(self, inputs):
         with tf.name_scope(self.name):
             inputs = tf.nn.dropout(inputs, 1-self.dropout)
-            U = inputs[0:num_u, :]
-            V = inputs[num_u:, :]
+            U = inputs[0:self.num_u, :]
+            V = inputs[self.num_u:, :]
             U = tf.matmul(U, self.vars['weights'])
             V = tf.transpose(V)
             x = tf.matmul(U, V)
