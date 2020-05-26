@@ -54,13 +54,13 @@ class GraphConvolutionSparse():
 class InnerProductDecoder():
     """Decoder model layer for link prediction."""
 
-    def __init__(self, input_dim, name, num_u, dropout=0., act=tf.nn.sigmoid):
+    def __init__(self, input_dim, name, num_r, dropout=0., act=tf.nn.sigmoid):
         self.name = name
         self.vars = {}
         self.issparse = False
         self.dropout = dropout
         self.act = act
-        self.num_u = num_u
+        self.num_r = num_r
         with tf.variable_scope(self.name + '_vars'):
             self.vars['weights'] = weight_variable_glorot(
                 input_dim, input_dim, name='weights')
@@ -68,11 +68,11 @@ class InnerProductDecoder():
     def __call__(self, inputs):
         with tf.name_scope(self.name):
             inputs = tf.nn.dropout(inputs, 1-self.dropout)
-            U = inputs[0:self.num_u, :]
-            V = inputs[self.num_u:, :]
-            U = tf.matmul(U, self.vars['weights'])
-            V = tf.transpose(V)
-            x = tf.matmul(U, V)
+            R = inputs[0:self.num_r, :]
+            D = inputs[self.num_r:, :]
+            R = tf.matmul(R, self.vars['weights'])
+            D = tf.transpose(D)
+            x = tf.matmul(R, D)
             x = tf.reshape(x, [-1])
             outputs = self.act(x)
         return outputs

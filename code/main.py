@@ -94,11 +94,8 @@ def cross_validation_experiment(drug_dis_matrix, drug_matrix, dis_matrix, seed, 
             drug_dis_matrix, predict_y_proba, train_matrix)
         print(metric_tmp)
         metric += metric_tmp
-
         del train_matrix
-
         gc.collect()
-
     print(metric / k_folds)
     metric = np.array(metric / k_folds)
     return metric
