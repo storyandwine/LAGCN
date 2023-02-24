@@ -1,5 +1,5 @@
 # LAGCN
-> Code and Datasets for "Predicting Drug-Disease Associations through Layer Attention Graph Convolutional Networks" 
+> Code and Datasets for "Predicting Drug-Disease Associations through Layer Attention Graph Convolutional Networks" https://doi.org/10.1093/bib/bbaa243
 ## Datasets
 - data/drug_dis.csv is the drug_disease association matrix, which contain 18416 associations between 269 drugs and 598 diseases.
 
